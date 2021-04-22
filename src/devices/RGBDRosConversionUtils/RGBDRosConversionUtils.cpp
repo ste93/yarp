@@ -242,3 +242,20 @@ void yarp::dev::RGBDRosConversionUtils::deepCopyImages(const DepthImage& src,
     dest.header.seq = seq;
     dest.is_bigendian = 0;
 }
+
+void yarp::dev::RGBDRosConversionUtils::deepCopyImagesRosToYarp(const yarp::rosmsg::sensor_msgs::Image& src,
+    yarp::sig::FlexImage& dest,
+    string& frame_id,
+    yarp::rosmsg::TickTime& timeStamp,
+    unsigned int& seq)
+{
+	dest.resize(src.width, src.height);
+	dest.setQuantum(0);
+    dest.setPixelCode(yarp::dev::ROSPixelCode::Ros2YarpPixelCode(src.encoding));
+    dest.setPixelSize(src.step/src.width); // this I think is rowsize
+    memcpy(dest.getRawImage(), src.data.data(), (src.height * src.width * src.step));
+    frame_id = src.header.frame_id;
+	timeStamp = src.header.stamp;
+	seq = src.header.seq;
+}
+

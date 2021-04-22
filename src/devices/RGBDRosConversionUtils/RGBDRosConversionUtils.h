@@ -78,6 +78,12 @@ void deepCopyImages(const DepthImage& src,
     const yarp::rosmsg::TickTime& timeStamp,
     const unsigned int& seq);
 
+void deepCopyImagesRosToYarp(const yarp::rosmsg::sensor_msgs::Image& src,
+    yarp::sig::FlexImage& dest,
+    std::string& frame_id,
+    yarp::rosmsg::TickTime& timeStamp,
+    unsigned int& seq);
+
 void shallowCopyImages(const yarp::sig::FlexImage& src, yarp::sig::FlexImage& dest);
 
 void shallowCopyImages(const DepthImage& src, DepthImage& dest);
