@@ -14,9 +14,9 @@ if(NOT SKIP_websocket)
 
   target_sources(yarp_websocket PRIVATE WebSocketCarrier.h
                                         WebSocketCarrier.cpp
-					WebSocket/WebSocket/WebSocket.cpp
-					WebSocket/WebSocket/base64/base64.cpp
-					WebSocket/WebSocket/sha1/sha1.cpp
+					WebSocket/WebSocket.cpp
+					WebSocket/base64/base64.cpp
+					WebSocket/sha1/sha1.cpp
 					
                                         base64.cpp)
 
