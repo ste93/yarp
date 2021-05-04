@@ -17,6 +17,7 @@
 #include <yarp/os/LogStream.h>
 #include <yarp/os/NetType.h>
 #include <yarp/os/ConnectionState.h>
+#include "WebSocket/WebSocket.h"
 
 #include <cstring>
 
@@ -36,6 +37,8 @@ private:
     bool firstRound {true};
     bool sender {false};
     std::string envelope;
+    WebSocket messagHandler;
+
 public:
     WebSocketCarrier() = default;
 

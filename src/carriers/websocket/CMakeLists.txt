@@ -9,12 +9,15 @@ yarp_prepare_plugin(websocket
                     TYPE WebSocketCarrier
                     INCLUDE WebSocketCarrier.h
                     EXTRA_CONFIG CODE="GET /?ws")
-
 if(NOT SKIP_websocket)
   yarp_add_plugin(yarp_websocket)
 
   target_sources(yarp_websocket PRIVATE WebSocketCarrier.h
                                         WebSocketCarrier.cpp
+					WebSocket/WebSocket/WebSocket.cpp
+					WebSocket/WebSocket/base64/base64.cpp
+					WebSocket/WebSocket/sha1/sha1.cpp
+					
                                         base64.cpp)
 
   target_link_libraries(yarp_websocket PRIVATE YARP::YARP_os

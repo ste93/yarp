@@ -8,14 +8,12 @@
  */
 
 #include "WebSocketCarrier.h"
-
 #include <yarp/os/Bottle.h>
 #include <yarp/os/Route.h>
 #include <yarp/os/OutputStream.h>
 #include <yarp/os/ManagedBytes.h>
+#include <iostream>
 
-#include "sha1.hpp"
-#include "base64.h"
 
 #include <regex>
 
@@ -145,11 +143,15 @@ bool WebSocketCarrier::expectSenderSpecifier(yarp::os::ConnectionState& proto)
     std::string url;
 //     bool expectPost;
 //     int contentLength;
+    std::string result = "";
 
     Route route = proto.getRoute();
     route.setFromName("web");
     proto.setRoute(route);
     std::string remainder = proto.is().readLine();
+    result += remainder;
+    result += "\r\n";
+
     yCDebug(WEBSOCKETCARRIER) << remainder;
     if (!urlDone) {
         for (char i : remainder) {
@@ -162,59 +164,20 @@ bool WebSocketCarrier::expectSenderSpecifier(yarp::os::ConnectionState& proto)
     }
 
     bool done = false;
-//     expectPost = false;
-//     contentLength = 0;
-
     while (!done) {
-        std::string result = proto.is().readLine();
-        yCDebug(WEBSOCKETCARRIER) << result;
-        if (result.empty()) {
+        std::string line = proto.is().readLine();
+        result += line;
+        result += "\r\n";
+        if (line.empty()) {
             done = true;
-        } else {
-            Bottle b;
-            b.fromString(result);
-            if (b.get(0).asString() == "Upgrade:") {
-                isWebSocket = (b.get(1).asString() == "websocket");
-                yCInfo(WEBSOCKETCARRIER) << "----> Upgrade: ---- " << b.get(1).asString() << (isWebSocket ? "true" : "false");
-            }
-            if (b.get(0).asString() == "Sec-WebSocket-Key:") {
-                std::string key = b.get(1).asString();
-                yCInfo(WEBSOCKETCARRIER) << "----> Sec-WebSocket-Key: ---- " << key;
+        } 
 
-                Chocobo1::SHA1 sha1;
-                constexpr char GUID_RFC4122[] {"258EAFA5-E914-47DA-95CA-C5AB0DC85B11"};
-                std::string x = key + GUID_RFC4122;
-                yCDebug(WEBSOCKETCARRIER) << x;
-                sha1.addData(x.c_str(), x.length());
-                sha1.finalize();
-                auto bytes = sha1.toArray();
-                acceptKey = base64_encode(bytes.data(), bytes.size());
-                yCDebug(WEBSOCKETCARRIER) << acceptKey;
-            }
-            if (b.get(0).asString() == "Sec-WebSocket-Extensions:") {
-                webSocketExtension = b.get(1).asString();
-                yCInfo(WEBSOCKETCARRIER) << "----> Sec-WebSocket-Extensions: ---- " << webSocketExtension;
-            }
-            if (b.get(0).asString() == "Sec-WebSocket-Version:") {
-                webSocketVersion = b.get(1).asInt32();
-                yCInfo(WEBSOCKETCARRIER) << "----> Sec-WebSocket-Version: ---- " << webSocketVersion;
-            }
-
-
-
-//             if (b.get(0).asString() == "Content-Length:") {
-//                 //printf("]]] got length %d\n", b.get(1).asInt32());
-//                 contentLength = b.get(1).asInt32();
-//             }
-//             if (b.get(0).asString() == "Content-Type:") {
-//                 //printf("]]] got type %s\n", b.get(1).asString());
-//                 if (b.get(1).asString() == "application/x-www-form-urlencoded") {
-//                     expectPost = true;
-//                 }
-//             }
-        }
     }
-
+    yCDebug(WEBSOCKETCARRIER)  << result.size() << "all http message " << result.c_str() ;
+    auto messagetype = messagHandler.parseHandshake(reinterpret_cast<unsigned char*>(const_cast<char*>(result.c_str())), result.size());
+    std::stringstream sstream;
+    sstream << std::hex << messagetype;
+    yCDebug(WEBSOCKETCARRIER)  << "message type " << sstream.str() ;
     return true;
 }
 
@@ -230,16 +193,11 @@ bool WebSocketCarrier::respondToHeader(yarp::os::ConnectionState& proto)
 
     auto& ciccio = proto.os();
 
-    std::string reply {
-"HTTP/1.1 101 Switching Protocols\r\n"
-"Upgrade: websocket\r\n"
-"Connection: upgrade\r\n"
-"Sec-WebSocket-Accept: <KEY>\r\n"
-"\r\n"};
+    std::string reply = messagHandler.answerHandshake();
 
 // "Sec-WebSocket-Version: <VER>\r\n"
 // "Sec-WebSocket-Extensions: <EXT>\r\n"
-    reply = std::regex_replace(reply, std::regex("<KEY>"), acceptKey);
+    reply = std::regex_replace(reply, std::regex("<KEY>"), "acceptKey");
 //     reply = std::regex_replace(reply, std::regex("<VER>"), std::to_string(webSocketVersion));
 //     reply = std::regex_replace(reply, std::regex("<EXT>"), webSocketExtension);
     yCDebug(WEBSOCKETCARRIER) << "REPLY:" << reply;
@@ -281,34 +239,103 @@ bool WebSocketCarrier::sendIndex(yarp::os::ConnectionState& proto, yarp::os::Siz
 bool WebSocketCarrier::expectIndex(yarp::os::ConnectionState& proto)
 {
     yCTrace(WEBSOCKETCARRIER);
+    yarp::os::ManagedBytes header;
+    yarp::os::ManagedBytes mask_bytes;
+    header.allocate(2);
+    proto.is().read(header.bytes());
 
-    yarp::os::ManagedBytes b;
-    b.allocate(2);
-    proto.is().read(b.bytes());
+	unsigned char msg_opcode = header.get()[0] & 0x0F;
+	unsigned char msg_fin = (header.get()[0] >> 7) & 0x01;
+	unsigned char msg_masked = (header.get()[1] >> 7) & 0x01;
 
-    bool mask = static_cast<bool>(b.get()[1] & 0b10000000);
-    auto length = static_cast<size_t>(b.get()[1] & 0b0111111);
+	// *** message decoding 
 
-    yCInfo(WEBSOCKETCARRIER) << "length" << length;
-    yCInfo(WEBSOCKETCARRIER) << "mask" << mask;
+	yarp::os::NetInt32 payload_length = 0;
+	int pos = 2;
+	int length_field = header.get()[1] & (0x7F);
+	unsigned int mask = 0;
+    yCDebug(WEBSOCKETCARRIER) <<length_field;
 
-    b.allocate(length);
-    proto.is().read(b.bytes());
+	if(length_field <= 125) {
+		payload_length = length_field;
+	}
+	else if(length_field == 126) { //msglen is 16bit!
+	    yarp::os::ManagedBytes additionalLength;
+		additionalLength.allocate(2);
+	    proto.is().read(additionalLength.bytes());
 
-    yCInfo(WEBSOCKETCARRIER) << b.get();
-/*
-    bool done = false;
-    while (!done) {
-        std::string result = proto.is().readLine();
-        yCDebug(WEBSOCKETCARRIER) << result;
-        if (result.empty()) {
-            done = true;
-        } else {
-//             Bottle b;
-//             b.fromString(result);
-            yCInfo(WEBSOCKETCARRIER) << result;
-        }
-    }*/
+        std::bitset<8> x(additionalLength.get()[0]);
+        std::bitset<8> y(additionalLength.get()[1]);
+        std::cout << x << y ;
+
+		payload_length = (
+			((unsigned char)additionalLength.get()[0] << 8) | 
+			((unsigned char)additionalLength.get()[1]) );
+		pos += 2;
+        yCDebug(WEBSOCKETCARRIER) <<payload_length;
+
+	}
+	else if(length_field == 127) { //msglen is 64bit!
+		yarp::os::ManagedBytes additionalLength;
+		additionalLength.allocate(8);
+	    proto.is().read(additionalLength.bytes());
+
+		payload_length = (
+			((unsigned char)additionalLength.get()[0] << 56) | 
+			((unsigned char)additionalLength.get()[1] << 48) | 
+			((unsigned char)additionalLength.get()[2] << 40) | 
+			((unsigned char)additionalLength.get()[3] << 32) | 
+			((unsigned char)additionalLength.get()[4] << 24) | 
+			((unsigned char)additionalLength.get()[5] << 16) | 
+			((unsigned char)additionalLength.get()[6] << 8) | 
+			((unsigned char)additionalLength.get()[7])
+		); 
+		pos += 8;
+	}
+		
+	//printf("PAYLOAD_LEN: %08x\n", payload_length);
+
+    yCDebug(WEBSOCKETCARRIER) <<payload_length;
+
+	if(msg_masked)
+    {
+        // get the mask
+        mask_bytes.allocate(4);
+        proto.is().read(mask_bytes.bytes());
+		//printf("MASK: %08x\n", mask);
+		pos += 4;
+    }
+    yCDebug(WEBSOCKETCARRIER) << payload_length;
+    yarp::os::ManagedBytes payload;
+	payload.allocate(payload_length);
+	proto.is().read(payload.bytes());
+
+    if(msg_masked)
+    {
+		// unmask data:
+		for(int i=0; i<payload_length; i++) {
+			payload.get()[i] = payload.get()[i] ^ mask_bytes.get()[i%4];
+		}
+	}
+    std::string myString(payload.get());
+	yCDebug(WEBSOCKETCARRIER) << myString;
+	//printf("TEXT: %s\n", out_buffer);
+
+	// if(msg_opcode == 0x0) return (msg_fin)?TEXT_FRAME:INCOMPLETE_TEXT_FRAME; // continuation frame ?
+	// if(msg_opcode == 0x1) return (msg_fin)?TEXT_FRAME:INCOMPLETE_TEXT_FRAME;
+	// if(msg_opcode == 0x2) return (msg_fin)?BINARY_FRAME:INCOMPLETE_BINARY_FRAME;
+	// if(msg_opcode == 0x9) return PING_FRAME;
+	// if(msg_opcode == 0xA) return PONG_FRAME;
+
+	// return ERROR_FRAME;
+    // yarp::os::ManagedBytes b;
+    // yarp::os::ManagedBytes c;
+    // b.allocate(2);
+    // proto.is().read(b.bytes());
+
+    // bool mask = static_cast<bool>(b.get()[1] & 0b10000000);
+    // auto length = static_cast<size_t>(b.get()[1] & 0b0111111);
+
     return true;
 }
 
