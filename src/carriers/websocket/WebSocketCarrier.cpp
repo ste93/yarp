@@ -8,6 +8,7 @@
  */
 
 #include "WebSocketCarrier.h"
+#include "WebSocketStream.h"
 #include <yarp/os/Bottle.h>
 #include <yarp/os/Route.h>
 #include <yarp/os/OutputStream.h>
@@ -60,13 +61,13 @@ bool WebSocketCarrier::canOffer() const
 bool WebSocketCarrier::isTextMode() const
 {
     yCTrace(WEBSOCKETCARRIER);
-    return true;
+    return false;
 }
 
 bool WebSocketCarrier::canEscape() const
 {
     yCTrace(WEBSOCKETCARRIER);
-//     return false;
+//    return false;
     return true;
 }
 
@@ -128,7 +129,7 @@ bool WebSocketCarrier::checkHeader(const yarp::os::Bytes& header)
 
 void WebSocketCarrier::setParameters(const yarp::os::Bytes& header)
 {
-    yCTrace(WEBSOCKETCARRIER) << header.length();
+    yCTrace(WEBSOCKETCARRIER) << "header" << header.length();
     // no parameters - no carrier variants
 }
 
@@ -190,7 +191,9 @@ bool WebSocketCarrier::expectExtraHeader(yarp::os::ConnectionState& proto)
 bool WebSocketCarrier::respondToHeader(yarp::os::ConnectionState& proto)
 {
     yCTrace(WEBSOCKETCARRIER);
-
+    WebSocketStream *stream = new WebSocketStream(proto.giveStreams());
+    if (stream==NULL) { return false; }
+    proto.takeStreams(stream);
     auto& ciccio = proto.os();
 
     std::string reply = messagHandler.answerHandshake();
@@ -203,7 +206,9 @@ bool WebSocketCarrier::respondToHeader(yarp::os::ConnectionState& proto)
     yCDebug(WEBSOCKETCARRIER) << "REPLY:" << reply;
     ciccio.writeLine(reply.c_str(), reply.length());
 
+        // SWITCH TO NEW STREAM TYPE
 
+    return true;
 //     std::string result = proto.is().readLine();
 //     yCDebug(WEBSOCKETCARRIER) << result.size() << result;
 //     std::string x {"\r\n"};
@@ -247,6 +252,10 @@ bool WebSocketCarrier::expectIndex(yarp::os::ConnectionState& proto)
 	unsigned char msg_opcode = header.get()[0] & 0x0F;
 	unsigned char msg_fin = (header.get()[0] >> 7) & 0x01;
 	unsigned char msg_masked = (header.get()[1] >> 7) & 0x01;
+    std::bitset<8> y((unsigned char)header.get()[0]);
+            std::bitset<8> x(header.get()[1]);
+
+        std::cout << " op_code " << y << x << std::endl ;
 
 	// *** message decoding 
 
@@ -266,7 +275,7 @@ bool WebSocketCarrier::expectIndex(yarp::os::ConnectionState& proto)
 
         std::bitset<8> x(additionalLength.get()[0]);
         std::bitset<8> y(additionalLength.get()[1]);
-        std::cout << x << y ;
+        std::cout << "additional length" <<  x << y << std::endl ;
 
 		payload_length = (
 			((unsigned char)additionalLength.get()[0] << 8) | 
@@ -276,6 +285,7 @@ bool WebSocketCarrier::expectIndex(yarp::os::ConnectionState& proto)
 
 	}
 	else if(length_field == 127) { //msglen is 64bit!
+        yCDebug(WEBSOCKETCARRIER) << "length_field > 127";
 		yarp::os::ManagedBytes additionalLength;
 		additionalLength.allocate(8);
 	    proto.is().read(additionalLength.bytes());
@@ -318,7 +328,7 @@ bool WebSocketCarrier::expectIndex(yarp::os::ConnectionState& proto)
 		}
 	}
     std::string myString(payload.get());
-	yCDebug(WEBSOCKETCARRIER) << myString;
+	yCDebug(WEBSOCKETCARRIER) << "payload" << myString;
 	//printf("TEXT: %s\n", out_buffer);
 
 	// if(msg_opcode == 0x0) return (msg_fin)?TEXT_FRAME:INCOMPLETE_TEXT_FRAME; // continuation frame ?
@@ -364,6 +374,7 @@ std::string WebSocketCarrier::getBootstrapCarrierName() const
 void WebSocketCarrier::getHeader(yarp::os::Bytes& header) const
 {
     yCTrace(WEBSOCKETCARRIER);
+    yCDebug(WEBSOCKETCARRIER) << "getting header"; 
     // GET /?action=stream HTTP/1.1
     const char *target = "GET /?ws";
     for (size_t i=0; i<8 && i<header.length(); i++) {

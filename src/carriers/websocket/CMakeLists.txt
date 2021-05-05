@@ -17,6 +17,7 @@ if(NOT SKIP_websocket)
 					WebSocket/WebSocket.cpp
 					WebSocket/base64/base64.cpp
 					WebSocket/sha1/sha1.cpp
+          WebSocketStream.cpp
 					
                                         base64.cpp)
 
