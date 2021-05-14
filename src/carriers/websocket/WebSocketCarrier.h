@@ -14,98 +14,51 @@
 #include <yarp/os/LogComponent.h>
 
 
-#include <yarp/os/LogStream.h>
+    #include <yarp/os/LogStream.h>
 #include <yarp/os/NetType.h>
 #include <yarp/os/ConnectionState.h>
+#include <yarp/os/SizedWriter.h>
 #include "WebSocket/WebSocket.h"
+#include <yarp/os/impl/TcpCarrier.h>
 
 #include <cstring>
 
-YARP_DECLARE_LOG_COMPONENT(WEBSOCKETCARRIER)
-
+using namespace yarp::os;
+using namespace yarp::os::impl;
 
 class WebSocketCarrier :
-        public yarp::os::Carrier
+        public TcpCarrier
 {
-private:
-    static constexpr size_t header_lenght {8};
-    bool isWebSocket{false};
-    int webSocketVersion;
-    std::string webSocketExtension;
-    std::string acceptKey;
-
-    bool firstRound {true};
-    bool sender {false};
-    std::string envelope;
-    WebSocket messagHandler;
-
 public:
-    WebSocketCarrier() = default;
+    WebSocketCarrier();
 
-    Carrier *create() const override;
+    Carrier* create() const override;
 
     std::string getName() const override;
 
-    bool isConnectionless() const override;
+    //virtual std::string getSpecifierName() const;
 
-    bool canAccept() const override;
+    bool checkHeader(const Bytes& header) override;
+    void getHeader(Bytes& header) const override;
+    bool requireAck() const override;
+    bool isTextMode() const override;
+    bool supportReply() const override;
+    bool sendHeader(ConnectionState& proto) override;
+    bool expectReplyToHeader(ConnectionState& proto) override;
+    bool expectSenderSpecifier(ConnectionState& proto) override;
+    bool sendIndex(ConnectionState& proto, SizedWriter& writer) override;
+    bool expectIndex(ConnectionState& proto) override;
+    bool sendAck(ConnectionState& proto) override;
+    bool expectAck(ConnectionState& proto) override;
+    bool respondToHeader(ConnectionState& proto) override;
+    bool write(ConnectionState& proto, yarp::os::SizedWriter& writer) override;
+
 
     bool canOffer() const override;
+private:
+    static constexpr size_t header_lenght {8};
+    WebSocket messageHandler;
 
-    bool isTextMode() const override;
-
-    bool canEscape() const override;
-
-    void handleEnvelope(const std::string& envelope) override;
-
-    bool requireAck() const override;
-
-    bool supportReply() const override;
-
-    bool isLocal() const override;
-
-    bool isPush() const override;
-
-    std::string toString() const override;
-
-
-    bool checkHeader(const yarp::os::Bytes& header) override;
-
-    void setParameters(const yarp::os::Bytes& header) override;
-
-
-
-    bool expectSenderSpecifier(yarp::os::ConnectionState& proto) override;
-
-    bool expectExtraHeader(yarp::os::ConnectionState& proto) override;
-
-    bool respondToHeader(yarp::os::ConnectionState& proto) override;
-
-    bool isActive() const override;
-
-
-    // Payload time!
-
-    bool write(yarp::os::ConnectionState& proto, yarp::os::SizedWriter& writer) override;
-
-    bool reply(yarp::os::ConnectionState& proto, yarp::os::SizedWriter& writer) override;
-
-    virtual bool sendIndex(yarp::os::ConnectionState& proto, yarp::os::SizedWriter& writer);
-
-    bool expectIndex(yarp::os::ConnectionState& proto) override;
-
-    bool sendAck(yarp::os::ConnectionState& proto) override;
-
-    bool expectAck(yarp::os::ConnectionState& proto) override;
-
-    std::string getBootstrapCarrierName() const override;
-
-// BEGIN UNUSED
-    void getHeader(yarp::os::Bytes& header) const override;
-    bool prepareSend(yarp::os::ConnectionState& proto) override;
-    bool sendHeader(yarp::os::ConnectionState& proto) override;
-    bool expectReplyToHeader(yarp::os::ConnectionState& proto) override;
-// END UNUSED
 };
 
-#endif
+#endif // WEBSOCKETCARRIER_H

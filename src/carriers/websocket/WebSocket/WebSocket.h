@@ -13,10 +13,13 @@
 #include <ctype.h> /* isdigit */
 #include <stddef.h> /* int */
 #include <cstring>
+#include <yarp/os/ManagedBytes.h>
 
 // std c++
-#include <vector> 
-#include <string> 
+#include <yarp/os/ConnectionState.h>
+
+#include <string>
+#include <vector>
 
 using namespace std;
 
@@ -39,6 +42,7 @@ enum WebSocketFrameType {
 
 class WebSocket
 {
+
 	public:
 
 	string resource;
@@ -58,7 +62,7 @@ class WebSocket
 	string answerHandshake();
 
 	int makeFrame(WebSocketFrameType frame_type, unsigned char* msg, int msg_len, unsigned char* buffer, int buffer_len);
-	WebSocketFrameType getFrame(unsigned char* in_buffer, int in_length, unsigned char* out_buffer, int out_size, int &out_length);
+	WebSocketFrameType getFrame(yarp::os::ManagedBytes &payload);
 
 	string trim(string str);
 	vector<string> explode(string theString, string theDelimiter, bool theIncludeEmptyStrings = false );

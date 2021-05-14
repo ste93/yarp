@@ -5,23 +5,25 @@
   * This software may be modified and distributed under the terms of the
   * BSD-3-Clause license. See the accompanying LICENSE file for details.
   */
-  
- #include <yarp/conf/system.h>
-  
- #include <yarp/os/LogStream.h>
- #include <yarp/os/NetType.h>
- #include <yarp/os/SystemClock.h>
-#include <yarp/os/LogComponent.h>
 
- #include "WebSocketStream.h"
- #include <cerrno>
- #include <cstring>
- #include <fcntl.h> /* For O_* constants */
- #include <sys/socket.h>
- #include <sys/stat.h> /* For mode constants */
- #include <sys/un.h>
- #include <unistd.h>
-  
+#include <yarp/conf/system.h>
+
+#include <yarp/os/LogComponent.h>
+#include <yarp/os/LogStream.h>
+#include <yarp/os/NetType.h>
+#include <yarp/os/SystemClock.h>
+
+#include "WebSocketStream.h"
+#include <bitset>
+#include <cerrno>
+#include <cstring>
+#include <fcntl.h> /* For O_* constants */
+#include <iostream>
+#include <sys/socket.h>
+#include <sys/stat.h> /* For mode constants */
+#include <sys/un.h>
+#include <unistd.h>
+
  using namespace yarp::os;
 
  YARP_LOG_COMPONENT(WEBSOCK_STREAM,
@@ -143,27 +145,32 @@ WebSocketStream::WebSocketStream(yarp::os::TwoWayStream *delegate):
  yarp::conf::ssize_t WebSocketStream::read(Bytes& b)
  {
      yCTrace(WEBSOCK_STREAM);
-    return delegate->getInputStream().read(b);
-    //  if (closed || !happy) {
-    //      return -1;
-    //  }
-    //  int result;
-    //  result = ::read(openedAsReader ? sender_fd : reader_fd, b.get(), b.length());
-    //  if (closed || result == 0) {
-    //      happy = false;
-    //      return -1;
-    //  }
-    //  if (result < 0) {
-    //      yCError(WEBSOCK_STREAM, "read() error: %d, %s", errno, strerror(errno));
-    //      return -1;
-    //  }
-    //  return result;
+     size_t bytesRead = 0;
+     //yCInfo(WEBSOCK_STREAM)<< "-------------read bytes length" <<b.length() << "buffer length" << buffer.length() << "current head" << currentHead;
+     while(bytesRead < b.length()) {
+         // the buffer is empty
+         if (buffer.length() == 0 || buffer.length() == currentHead) {
+             getFrame(buffer);
+             currentHead = 0;
+         }
+         // get the remaining bytes to read from the buffer
+         size_t remainedFromBuffer = buffer.length() - currentHead;
+         // if the buffer is enough then the size of the bytes is given,
+         // otherwise the remaining bytes from the buffer is copied and is read again from the buffer
+         size_t toAdd = (remainedFromBuffer >= b.length()) ? b.length() : remainedFromBuffer;
+         memcpy(b.get(), buffer.get() + currentHead, toAdd);
+         currentHead += toAdd;
+         bytesRead += toAdd;
+         //yCInfo(WEBSOCK_STREAM)<< "-------------at the end of while bytes read" <<bytesRead << "to add" << toAdd << "current head" << currentHead;
+     }
+     //yCInfo(WEBSOCK_STREAM) << "returning the bytes";
+     return b.length();
  }
   
  void WebSocketStream::write(const Bytes& b)
  {
-     yCTrace(WEBSOCK_STREAM);
-    return delegate->getOutputStream().write(b);
+    yCTrace(WEBSOCK_STREAM) << b.length();
+    //return delegate->getOutputStream().write(b);
     //  if (reader_fd < 0) {
     //      close();
     //      return;
@@ -197,4 +204,99 @@ WebSocketStream::WebSocketStream(yarp::os::TwoWayStream *delegate):
  void WebSocketStream::endPacket()
  {
      yCTrace(WEBSOCK_STREAM);
+ }
+
+
+ WebSocketFrameType WebSocketStream::getFrame(yarp::os::ManagedBytes &payload)
+ {
+     yCTrace(WEBSOCK_STREAM);
+     //return delegate->getInputStream().read(b);
+     yarp::os::ManagedBytes header;
+     yarp::os::ManagedBytes mask_bytes;
+     header.allocate(2);
+     delegate->getInputStream().read(header.bytes());
+     unsigned char msg_opcode = header.get()[0] & 0x0F;
+     unsigned char msg_fin = (header.get()[0] >> 7) & 0x01;
+     unsigned char msg_masked = (header.get()[1] >> 7) & 0x01;
+     //std::bitset<8> y(static_cast<unsigned char>(header.get()[0]));
+     //std::bitset<8> x(header.get()[1]);
+
+     //std::cout << " op_code " << y << x << std::endl ;
+
+     // *** message decoding
+/*     if(msg_opcode == 0x0) return (msg_fin)?TEXT_FRAME:INCOMPLETE_TEXT_FRAME; // continuation frame ?
+     if(msg_opcode == 0x1) return (msg_fin)?TEXT_FRAME:INCOMPLETE_TEXT_FRAME;
+     if(msg_opcode == 0x2) return (msg_fin)?BINARY_FRAME:INCOMPLETE_BINARY_FRAME;
+     if(msg_opcode == 0x9) return PING_FRAME;
+     if(msg_opcode == 0xA) return PONG_FRAME;*/
+
+
+     yarp::os::NetInt32 payload_length = 0;
+     int pos = 2;
+     int length_field = header.get()[1] & (0x7F);
+     unsigned int mask = 0;
+
+     if(length_field <= 125) {
+         payload_length = length_field;
+     }
+     else if(length_field == 126) { //msglen is 16bit!
+         yarp::os::ManagedBytes additionalLength;
+         additionalLength.allocate(2);
+         delegate->getInputStream().read(additionalLength.bytes());
+
+         //std::bitset<8> x(additionalLength.get()[0]);
+         //std::bitset<8> y(additionalLength.get()[1]);
+         //std::cout << "additional length" <<  x << y << std::endl ;
+
+         payload_length = (
+             (static_cast<unsigned char>(additionalLength.get()[0]) << 8) |
+             (static_cast<unsigned char>(additionalLength.get()[1])) );
+         pos += 2;
+     }
+     else if(length_field == 127) { //msglen is 64bit!
+         yarp::os::ManagedBytes additionalLength;
+         additionalLength.allocate(8);
+         delegate->getInputStream().read(additionalLength.bytes());
+
+         payload_length = (
+             (static_cast<unsigned char>(additionalLength.get()[0]) << 56) |
+             (static_cast<unsigned char>(additionalLength.get()[1]) << 48) |
+             (static_cast<unsigned char>(additionalLength.get()[2]) << 40) |
+             (static_cast<unsigned char>(additionalLength.get()[3]) << 32) |
+             (static_cast<unsigned char>(additionalLength.get()[4]) << 24) |
+             (static_cast<unsigned char>(additionalLength.get()[5]) << 16) |
+             (static_cast<unsigned char>(additionalLength.get()[6]) << 8) |
+             (static_cast<unsigned char>(additionalLength.get()[7]))
+         );
+         pos += 8;
+     }
+
+     //printf("PAYLOAD_LEN: %08x\n", payload_length);
+
+
+     if(msg_masked)
+     {
+         // get the mask
+         mask_bytes.allocate(4);
+         delegate->getInputStream().read(mask_bytes.bytes());
+         //printf("MASK: %08x\n", mask);
+         pos += 4;
+     }
+     payload.allocate(payload_length);
+     delegate->getInputStream().read(payload.bytes());
+
+     if(msg_masked)
+     {
+         // unmask data:
+         for(int i=0; i<payload_length; i++) {
+             payload.get()[i] = payload.get()[i] ^ mask_bytes.get()[i%4];
+         }
+     }
+     //yCInfo(WEBSOCK_STREAM) << "payload length"<< payload.length();
+     /*
+     for (size_t t = 0; t< payload.length(); t++ )
+     {
+         yCInfo(WEBSOCK_STREAM) << (int) payload.get()[t];
+     }*/
+     return BINARY_FRAME;
  }

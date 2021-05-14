@@ -8,11 +8,12 @@
   
  #ifndef YARP_WEBSOCKSTREAM_H
  #define YARP_WEBSOCKSTREAM_H
-  
- #include <yarp/os/ManagedBytes.h>
- #include <yarp/os/TwoWayStream.h>
 
-  
+#include <yarp/os/ManagedBytes.h>
+#include <yarp/os/TwoWayStream.h>
+
+#include "WebSocket/WebSocket.h"
+
  class WebSocketStream :
          public yarp::os::TwoWayStream,
          public yarp::os::InputStream,
@@ -50,12 +51,15 @@
      void endPacket() override;
   
     // bool open(bool sender = false);
-    //  void setLocalAddress(yarp::os::Contact& _localAddress);
-    //  void setRemoteAddress(yarp::os::Contact& _remoteAddress);
+//     void setLocalAddress(yarp::os::Contact& _localAddress);
+    // void setRemoteAddress(yarp::os::Contact& _remoteAddress);
   
  private:
     yarp::os::TwoWayStream *delegate;
     yarp::os::Contact local, remote;
+    yarp::os::ManagedBytes buffer;
+    size_t currentHead{0};
+    WebSocketFrameType getFrame(yarp::os::ManagedBytes &payload);
  };
   
  #endif // YARP_WEBSOCKSTREAM_H
