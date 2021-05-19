@@ -25,7 +25,7 @@ class YARP_os_impl_API TcpCarrier :
 public:
     TcpCarrier(bool requireAckFlag = true);
 
-    Carrier* create() const override;   
+    Carrier* create() const override;
 
     std::string getName() const override;
 
