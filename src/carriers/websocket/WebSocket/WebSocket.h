@@ -71,7 +71,9 @@ private:
     string key;
 
     string trim(string str);
-    vector<string> explode(string theString, string theDelimiter, bool theIncludeEmptyStrings = false);
+    vector<string> explode(string theString,
+                           string theDelimiter,
+                           bool theIncludeEmptyStrings = false);
 };
 
 #endif /* WEBSOCKET_H */
