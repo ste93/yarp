@@ -19,13 +19,13 @@ namespace impl {
 /**
  * Communicating between two ports via TCP.
  */
-class TcpCarrier :
+class YARP_os_impl_API TcpCarrier :
         public AbstractCarrier
 {
 public:
     TcpCarrier(bool requireAckFlag = true);
 
-    Carrier* create() const override;
+    Carrier* create() const override;   
 
     std::string getName() const override;
 
