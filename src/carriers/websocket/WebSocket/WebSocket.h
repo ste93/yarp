@@ -33,7 +33,7 @@ enum WebSocketFrameType
     // this means at least another message need to be received
     INCOMPLETE_TEXT_FRAME = 0x01,
     INCOMPLETE_BINARY_FRAME = 0x02,
-
+    CLOSING_OPCODE = 0x08,
     //this means that is the last frame sended (no other splits)
     TEXT_FRAME = 0x81,
     BINARY_FRAME = 0x82,

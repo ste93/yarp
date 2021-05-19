@@ -12,13 +12,15 @@ yarp_prepare_plugin(websocket
 if(NOT SKIP_websocket)
   yarp_add_plugin(yarp_websocket)
 
-  target_sources(yarp_websocket PRIVATE WebSocketCarrier.h
+  target_sources(yarp_websocket
+      PRIVATE
+          WebSocketCarrier.h
           WebSocketCarrier.cpp
-                                        WebSocketStream.cpp
-                                        WebSocket/WebSocket.cpp
-                                        WebSocket/base64/base64.cpp
-                                        WebSocket/sha1/sha1.cpp
-                                        base64.cpp)
+          WebSocketStream.cpp
+          WebSocket/WebSocket.cpp
+          WebSocket/base64/base64.cpp
+          WebSocket/sha1/sha1.cpp
+      )
 
   target_link_libraries(yarp_websocket PRIVATE YARP::YARP_os
                                                YARP::YARP_sig

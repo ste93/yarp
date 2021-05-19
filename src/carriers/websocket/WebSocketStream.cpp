@@ -81,6 +81,8 @@ void WebSocketStream::interrupt()
     close();
 }
 
+
+// TODO FIXME STE need to implement the closing protocol
 void WebSocketStream::close()
 {
     yCTrace(WEBSOCK_STREAM);
@@ -90,7 +92,7 @@ yarp::conf::ssize_t WebSocketStream::read(Bytes& b)
 {
     yCTrace(WEBSOCK_STREAM);
     size_t bytesRead = 0;
-    //yCInfo(WEBSOCK_STREAM)<< "-------------read bytes length" <<b.length() << "buffer length" << buffer.length() << "current head" << currentHead;
+    yCInfo(WEBSOCK_STREAM)<< "-------------read bytes length" <<b.length() << "buffer length" << buffer.length() << "current head" << currentHead;
     while (bytesRead < b.length()) {
         // the buffer is empty
         if (buffer.length() == 0 || buffer.length() == currentHead) {
@@ -111,6 +113,7 @@ yarp::conf::ssize_t WebSocketStream::read(Bytes& b)
     return b.length();
 }
 
+// TODO FIXME STE need to manage oversized messages
 void WebSocketStream::write(const Bytes& b)
 {
     yCTrace(WEBSOCK_STREAM) << b.length();
@@ -120,20 +123,6 @@ void WebSocketStream::write(const Bytes& b)
     makeFrame(BINARY_FRAME, b, frame);
     yarp::os::Bytes toWrite(frame.get(), frame.length());
     return delegate->getOutputStream().write(toWrite);
-
-    //return delegate->getOutputStream().write(b);
-    //  if (reader_fd < 0) {
-    //      close();
-    //      return;
-    //  }
-    //  int writtenMem = ::write(openedAsReader ? sender_fd : reader_fd, b.get(), b.length());
-    //  if (writtenMem < 0) {
-    //      yCError(WEBSOCK_STREAM, "write() error: %d, %s", errno, strerror(errno));
-    //      if (errno != ETIMEDOUT) {
-    //          close();
-    //      }
-    //      return;
-    //  }
 }
 
 bool WebSocketStream::isOk() const
@@ -162,7 +151,6 @@ void WebSocketStream::endPacket()
 WebSocketFrameType WebSocketStream::getFrame(yarp::os::ManagedBytes& payload)
 {
     yCTrace(WEBSOCK_STREAM);
-    //return delegate->getInputStream().read(b);
     yarp::os::ManagedBytes header;
     yarp::os::ManagedBytes mask_bytes;
     header.allocate(2);
@@ -170,10 +158,10 @@ WebSocketFrameType WebSocketStream::getFrame(yarp::os::ManagedBytes& payload)
     unsigned char msg_opcode = header.get()[0] & 0x0F;
     unsigned char msg_fin = (header.get()[0] >> 7) & 0x01;
     unsigned char msg_masked = (header.get()[1] >> 7) & 0x01;
-    //std::bitset<8> y(static_cast<unsigned char>(header.get()[0]));
+    std::bitset<8> y(msg_opcode);
     //std::bitset<8> x(header.get()[1]);
 
-    //std::cout << " op_code " << y << x << std::endl ;
+    std::cout << " op_code " << y << std::endl ;
 
     // *** message decoding
     /*     if(msg_opcode == 0x0) return (msg_fin)?TEXT_FRAME:INCOMPLETE_TEXT_FRAME; // continuation frame ?
@@ -230,10 +218,16 @@ WebSocketFrameType WebSocketStream::getFrame(yarp::os::ManagedBytes& payload)
             payload.get()[i] = payload.get()[i] ^ mask_bytes.get()[i % 4];
         }
     }
-    yCInfo(WEBSOCK_STREAM) << "payload length" << payload.length();
+//    yCInfo(WEBSOCK_STREAM) << "payload length" << payload.length();
+//
+//    for (size_t t = 0; t < payload.length(); t++) {
+//        yCInfo(WEBSOCK_STREAM) << (int)payload.get()[t];
+//    }
+    if (msg_opcode == CLOSING_OPCODE)
+    {
+        // TODO FIXME STE NEED TO CLOSE THE CONNECTIOn
+        return CLOSING_FRAME;
 
-    for (size_t t = 0; t < payload.length(); t++) {
-        yCInfo(WEBSOCK_STREAM) << (int)payload.get()[t];
     }
     return BINARY_FRAME;
 }
@@ -244,10 +238,10 @@ void WebSocketStream::makeFrame(WebSocketFrameType frame_type,
                                 const yarp::os::Bytes& payload,
                                 yarp::os::ManagedBytes& frame)
 {
-    yCInfo(WEBSOCK_STREAM) << "make frame";
+//    yCInfo(WEBSOCK_STREAM) << "make frame";
     int pos = 0;
     int size = payload.length();
-    yCInfo(WEBSOCK_STREAM) << "make frame size " << size;
+//    yCInfo(WEBSOCK_STREAM) << "make frame size " << size;
 
 
     if (size <= 125) {
