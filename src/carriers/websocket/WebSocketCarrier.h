@@ -11,16 +11,14 @@
 #define WEBSOCKETCARRIER_H
 
 #include <yarp/os/Carrier.h>
-#include <yarp/os/LogComponent.h>
-
-
-    #include <yarp/os/LogStream.h>
-#include <yarp/os/NetType.h>
 #include <yarp/os/ConnectionState.h>
+#include <yarp/os/LogComponent.h>
+#include <yarp/os/LogStream.h>
+#include <yarp/os/NetType.h>
 #include <yarp/os/SizedWriter.h>
-#include "WebSocket/WebSocket.h"
 #include <yarp/os/impl/TcpCarrier.h>
 
+#include "WebSocket/WebSocket.h"
 #include <cstring>
 
 using namespace yarp::os;
@@ -52,13 +50,16 @@ public:
     bool expectAck(ConnectionState& proto) override;
     bool respondToHeader(ConnectionState& proto) override;
     bool write(ConnectionState& proto, yarp::os::SizedWriter& writer) override;
-
+    bool requireAck()
+    {
+        return false;
+    };
 
     bool canOffer() const override;
+
 private:
     static constexpr size_t header_lenght {8};
     WebSocket messageHandler;
-
 };
 
 #endif // WEBSOCKETCARRIER_H
