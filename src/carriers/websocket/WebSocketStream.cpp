@@ -7,25 +7,18 @@
   */
 
 #include "WebSocketStream.h"
-#include <yarp/conf/system.h>
 
 #include <yarp/os/LogComponent.h>
 #include <yarp/os/LogStream.h>
 #include <yarp/os/NetType.h>
-#include <yarp/os/SystemClock.h>
 
 #include <bitset>
-#include <cerrno>
-#include <cstring>
-#include <fcntl.h> /* For O_* constants */
 #include <iostream>
-#include <sys/socket.h>
-#include <sys/stat.h> /* For mode constants */
 #include <sys/un.h>
-#include <unistd.h>
 
 
 using namespace yarp::os;
+
 
 YARP_LOG_COMPONENT(WEBSOCK_STREAM,
                    "yarp.stream.websocket",
@@ -33,6 +26,7 @@ YARP_LOG_COMPONENT(WEBSOCK_STREAM,
                    yarp::os::Log::LogTypeReserved,
                    yarp::os::Log::printCallback(),
                    nullptr)
+
 
 WebSocketStream::WebSocketStream(yarp::os::TwoWayStream* delegate) :
         delegate(delegate)
@@ -82,17 +76,21 @@ void WebSocketStream::interrupt()
 }
 
 
-// TODO FIXME STE need to implement the closing protocol
 void WebSocketStream::close()
 {
-    yCTrace(WEBSOCK_STREAM);
+    yCInfo(WEBSOCK_STREAM) << "close";
+    yarp::os::ManagedBytes frame;
+    yarp::os::Bytes b;
+    makeFrame(CLOSING_OPCODE, b, frame);
+    yarp::os::Bytes toWrite(frame.get(), frame.length());
+    return delegate->getOutputStream().write(toWrite);
 }
+
 
 yarp::conf::ssize_t WebSocketStream::read(Bytes& b)
 {
     yCTrace(WEBSOCK_STREAM);
     size_t bytesRead = 0;
-    yCInfo(WEBSOCK_STREAM)<< "-------------read bytes length" <<b.length() << "buffer length" << buffer.length() << "current head" << currentHead;
     while (bytesRead < b.length()) {
         // the buffer is empty
         if (buffer.length() == 0 || buffer.length() == currentHead) {
@@ -107,9 +105,7 @@ yarp::conf::ssize_t WebSocketStream::read(Bytes& b)
         memcpy(b.get(), buffer.get() + currentHead, toAdd);
         currentHead += toAdd;
         bytesRead += toAdd;
-        //yCInfo(WEBSOCK_STREAM)<< "-------------at the end of while bytes read" <<bytesRead << "to add" << toAdd << "current head" << currentHead;
     }
-    //yCInfo(WEBSOCK_STREAM) << "returning the bytes";
     return b.length();
 }
 
@@ -150,7 +146,7 @@ void WebSocketStream::endPacket()
 // TODO FIXME STE here need to be managed frametype, continuation frame and some other things
 WebSocketFrameType WebSocketStream::getFrame(yarp::os::ManagedBytes& payload)
 {
-    yCTrace(WEBSOCK_STREAM);
+    yCInfo(WEBSOCK_STREAM) << "getframe";
     yarp::os::ManagedBytes header;
     yarp::os::ManagedBytes mask_bytes;
     header.allocate(2);
@@ -158,10 +154,14 @@ WebSocketFrameType WebSocketStream::getFrame(yarp::os::ManagedBytes& payload)
     unsigned char msg_opcode = header.get()[0] & 0x0F;
     unsigned char msg_fin = (header.get()[0] >> 7) & 0x01;
     unsigned char msg_masked = (header.get()[1] >> 7) & 0x01;
-    std::bitset<8> y(msg_opcode);
-    //std::bitset<8> x(header.get()[1]);
-
-    std::cout << " op_code " << y << std::endl ;
+    if (msg_opcode == CLOSING_OPCODE)
+    {
+        // TODO FIXME STE NEED TO CLOSE THE CONNECTIOn
+        unsigned char toreturn[]  = "\0\0\0\0~\0\0\1q";
+        payload.allocate(10);
+        memcpy(payload.get(), toreturn, 10);
+        return CLOSING_OPCODE;
+    }
 
     // *** message decoding
     /*     if(msg_opcode == 0x0) return (msg_fin)?TEXT_FRAME:INCOMPLETE_TEXT_FRAME; // continuation frame ?
@@ -182,12 +182,9 @@ WebSocketFrameType WebSocketStream::getFrame(yarp::os::ManagedBytes& payload)
         yarp::os::ManagedBytes additionalLength;
         additionalLength.allocate(2);
         delegate->getInputStream().read(additionalLength.bytes());
-
-        //std::bitset<8> x(additionalLength.get()[0]);
-        //std::bitset<8> y(additionalLength.get()[1]);
-        //std::cout << "additional length" <<  x << y << std::endl ;
         // TODO FIXME STE this is not so good, maybe bytes can be used (the left shift is notso good)
-        payload_length = ((static_cast<unsigned char>(additionalLength.get()[0]) << 8) | (static_cast<unsigned char>(additionalLength.get()[1])));
+        payload_length = ((static_cast<unsigned char>(additionalLength.get()[0]) << 8) |
+                          (static_cast<unsigned char>(additionalLength.get()[1])));
         pos += 2;
     } else if (length_field == 127) { //msglen is 64bit!
         yarp::os::ManagedBytes additionalLength;
@@ -195,12 +192,16 @@ WebSocketFrameType WebSocketStream::getFrame(yarp::os::ManagedBytes& payload)
         delegate->getInputStream().read(additionalLength.bytes());
 
         // TODO FIXME STE this part need to be cheked (payload length is 32 bits)
-        payload_length = ((static_cast<unsigned char>(additionalLength.get()[0]) << 56) | (static_cast<unsigned char>(additionalLength.get()[1]) << 48) | (static_cast<unsigned char>(additionalLength.get()[2]) << 40) | (static_cast<unsigned char>(additionalLength.get()[3]) << 32) | (static_cast<unsigned char>(additionalLength.get()[4]) << 24) | (static_cast<unsigned char>(additionalLength.get()[5]) << 16) | (static_cast<unsigned char>(additionalLength.get()[6]) << 8) | (static_cast<unsigned char>(additionalLength.get()[7])));
+        payload_length = ((static_cast<unsigned char>(additionalLength.get()[0]) << 56) |
+                          (static_cast<unsigned char>(additionalLength.get()[1]) << 48) |
+                          (static_cast<unsigned char>(additionalLength.get()[2]) << 40) |
+                          (static_cast<unsigned char>(additionalLength.get()[3]) << 32) |
+                          (static_cast<unsigned char>(additionalLength.get()[4]) << 24) |
+                          (static_cast<unsigned char>(additionalLength.get()[5]) << 16) |
+                          (static_cast<unsigned char>(additionalLength.get()[6]) << 8) |
+                          (static_cast<unsigned char>(additionalLength.get()[7])));
         pos += 8;
     }
-
-    //printf("PAYLOAD_LEN: %08x\n", payload_length);
-    yCInfo(WEBSOCK_STREAM) << "payload length" << payload_length;
 
     if (msg_masked) {
         // get the mask
@@ -218,30 +219,17 @@ WebSocketFrameType WebSocketStream::getFrame(yarp::os::ManagedBytes& payload)
             payload.get()[i] = payload.get()[i] ^ mask_bytes.get()[i % 4];
         }
     }
-//    yCInfo(WEBSOCK_STREAM) << "payload length" << payload.length();
-//
-//    for (size_t t = 0; t < payload.length(); t++) {
-//        yCInfo(WEBSOCK_STREAM) << (int)payload.get()[t];
-//    }
-    if (msg_opcode == CLOSING_OPCODE)
-    {
-        // TODO FIXME STE NEED TO CLOSE THE CONNECTIOn
-        return CLOSING_FRAME;
-
-    }
     return BINARY_FRAME;
 }
 
 
-// FIXME TODO STE need to be implemented many functions, it's only partial
+// FIXME TODO STE need to add length higher than 2^32
 void WebSocketStream::makeFrame(WebSocketFrameType frame_type,
                                 const yarp::os::Bytes& payload,
                                 yarp::os::ManagedBytes& frame)
 {
-//    yCInfo(WEBSOCK_STREAM) << "make frame";
     int pos = 0;
     int size = payload.length();
-//    yCInfo(WEBSOCK_STREAM) << "make frame size " << size;
 
 
     if (size <= 125) {
@@ -254,8 +242,6 @@ void WebSocketStream::makeFrame(WebSocketFrameType frame_type,
 
     frame.get()[pos] = (unsigned char)frame_type; // text frame
     pos++;
-    std::bitset<8> x(frame.get()[pos - 1]);
-    std::cout << "frame type" << x << std::endl;
 
     if (size <= 125) {
         frame.get()[pos++] = size;
@@ -269,9 +255,10 @@ void WebSocketStream::makeFrame(WebSocketFrameType frame_type,
     } else {                      // >2^16-1 (65535)
         frame.get()[pos++] = 127; //64 bit length follows
 
-        // write 8 bytes length (significant first)
-        // since msg_length is int it can be no longer than 4 bytes = 2^32-1
-        // padd zeroes for the first 4 bytes
+        /* write 8 bytes length (significant first)
+         * since msg_length is int it can be no longer than 4 bytes = 2^32-1
+         * padd zeroes for the first 4 bytes
+         */
         for (int i = 3; i >= 0; i--) {
             frame.get()[pos++] = 0;
         }
@@ -281,5 +268,4 @@ void WebSocketStream::makeFrame(WebSocketFrameType frame_type,
         }
     }
     memcpy((void*)(frame.get() + pos), payload.get(), size);
-    // return (size+pos);
 }

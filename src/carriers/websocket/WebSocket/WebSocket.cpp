@@ -1,3 +1,10 @@
+/*
+ * Copyright (C) 2006-2021 Istituto Italiano di Tecnologia (IIT)
+ * All rights reserved.
+ *
+ * This software may be modified and distributed under the terms of the
+ * BSD-3-Clause license. See the accompanying LICENSE file for details.
+ */
 // WebSocket, v1.00 2012-09-13
 //
 // Description: WebSocket RFC6544 codec, written in C++.
@@ -12,8 +19,6 @@
 
 #include "base64/base64.h"
 #include "sha1/sha1.h"
-#include <bitset>
-#include <iostream>
 #include <string>
 #include <vector>
 
