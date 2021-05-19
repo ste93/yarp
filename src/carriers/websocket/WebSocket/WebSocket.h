@@ -56,10 +56,10 @@ public:
     WebSocket();
 
     /**
-	 * @param input_frame .in. pointer to input frame
-	 * @param input_len .in. length of input frame
-	 * @return [WS_INCOMPLETE_FRAME, WS_ERROR_FRAME, WS_OPENING_FRAME]
-	 */
+     * @param input_frame .in. pointer to input frame
+     * @param input_len .in. length of input frame
+     * @return [WS_INCOMPLETE_FRAME, WS_ERROR_FRAME, WS_OPENING_FRAME]
+     */
     WebSocketFrameType parseHandshake(unsigned char* input_frame, int input_len);
     string answerHandshake();
 
