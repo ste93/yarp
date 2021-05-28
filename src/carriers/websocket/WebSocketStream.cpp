@@ -11,6 +11,7 @@
 #include <yarp/os/LogComponent.h>
 #include <yarp/os/LogStream.h>
 #include <yarp/os/NetType.h>
+#include <yarp/os/NetInt64.h>
 
 #include <bitset>
 #include <iostream>
@@ -90,11 +91,15 @@ void WebSocketStream::close()
 yarp::conf::ssize_t WebSocketStream::read(Bytes& b)
 {
     yCTrace(WEBSOCK_STREAM);
+    yCInfo(WEBSOCK_STREAM) << b.length();
     size_t bytesRead = 0;
     while (bytesRead < b.length()) {
         // the buffer is empty
         if (buffer.length() == 0 || buffer.length() == currentHead) {
-            getFrame(buffer);
+            WebSocketFrameType frameType;
+            do {
+                frameType = getFrame(buffer);
+            } while (frameType != BINARY_FRAME || frameType != TEXT_FRAME);
             currentHead = 0;
         }
         // get the remaining bytes to read from the buffer
@@ -110,11 +115,10 @@ yarp::conf::ssize_t WebSocketStream::read(Bytes& b)
 }
 
 // TODO FIXME STE need to manage oversized messages
-void WebSocketStream::write(const Bytes& b)
+// I think is not necessary since size_t is 32 bits
+void WebSocketStream::write(const yarp::os::Bytes& b)
 {
     yCTrace(WEBSOCK_STREAM) << b.length();
-    yCInfo(WEBSOCK_STREAM) << b.length();
-    yCInfo(WEBSOCK_STREAM) << b.get();
     yarp::os::ManagedBytes frame;
     makeFrame(BINARY_FRAME, b, frame);
     yarp::os::Bytes toWrite(frame.get(), frame.length());
@@ -144,6 +148,8 @@ void WebSocketStream::endPacket()
 
 
 // TODO FIXME STE here need to be managed frametype, continuation frame and some other things
+// TODO FIXME STE need to check the size of managedbytes (if is higher than 32 bits) 
+// since managedbytes.size is 32 bits we need to manage the overload (how?)
 WebSocketFrameType WebSocketStream::getFrame(yarp::os::ManagedBytes& payload)
 {
     yCInfo(WEBSOCK_STREAM) << "getframe";
@@ -152,62 +158,65 @@ WebSocketFrameType WebSocketStream::getFrame(yarp::os::ManagedBytes& payload)
     header.allocate(2);
     delegate->getInputStream().read(header.bytes());
     unsigned char msg_opcode = header.get()[0] & 0x0F;
-    unsigned char msg_fin = (header.get()[0] >> 7) & 0x01;
+    // unsigned char msg_fin = (header.get()[0] >> 7) & 0x01;
     unsigned char msg_masked = (header.get()[1] >> 7) & 0x01;
     if (msg_opcode == CLOSING_OPCODE)
     {
-        // TODO FIXME STE NEED TO CLOSE THE CONNECTIOn
+        // this sends a quit command to the caller through the yarp protocol (so the caller) can quit the connection in a reasonable manner
         unsigned char toreturn[]  = "\0\0\0\0~\0\0\1q";
         payload.allocate(10);
         memcpy(payload.get(), toreturn, 10);
         return CLOSING_OPCODE;
     }
-
-    // *** message decoding
-    /*     if(msg_opcode == 0x0) return (msg_fin)?TEXT_FRAME:INCOMPLETE_TEXT_FRAME; // continuation frame ?
-     if(msg_opcode == 0x1) return (msg_fin)?TEXT_FRAME:INCOMPLETE_TEXT_FRAME;
-     if(msg_opcode == 0x2) return (msg_fin)?BINARY_FRAME:INCOMPLETE_BINARY_FRAME;
-     if(msg_opcode == 0x9) return PING_FRAME;
-     if(msg_opcode == 0xA) return PONG_FRAME;*/
-
-
-    yarp::os::NetInt32 payload_length = 0;
+    else if (msg_opcode != BINARY_FRAME || msg_opcode != TEXT_FRAME){
+        std::bitset<8> x(msg_opcode);
+        std::cout << "msg_opcode" << x << std::endl;
+    }
+    yarp::os::NetInt64 payload_length = 0;
     int pos = 2;
-    int length_field = header.get()[1] & (0x7F);
-    unsigned int mask = 0;
+    yarp::os::NetInt32 length_field = header.get()[1] & (0x7F);
 
     if (length_field <= 125) {
         payload_length = length_field;
-    } else if (length_field == 126) { //msglen is 16bit!
+    } else {
         yarp::os::ManagedBytes additionalLength;
-        additionalLength.allocate(2);
+        int length_to_add;
+        if (length_field == 126) { //msglen is 16bit!
+            length_to_add = 2;
+        } else if (length_field == 127) { //msglen is 64bit!
+            length_to_add = 8;
+        }
+        additionalLength.allocate(length_to_add);
         delegate->getInputStream().read(additionalLength.bytes());
-        // TODO FIXME STE this is not so good, maybe bytes can be used (the left shift is notso good)
-        payload_length = ((static_cast<unsigned char>(additionalLength.get()[0]) << 8) |
-                          (static_cast<unsigned char>(additionalLength.get()[1])));
-        pos += 2;
-    } else if (length_field == 127) { //msglen is 64bit!
-        yarp::os::ManagedBytes additionalLength;
-        additionalLength.allocate(8);
-        delegate->getInputStream().read(additionalLength.bytes());
+        unsigned char bits[8];
+        // memcpy(bits, &payload_length, 8);
+        // for (int i =0; i<8 ; i++){
+        //     std::bitset<8> x(bits[i]);
+        //     std::cout << "frame size" << x << std::endl;
+        // }
+        // yCInfo(WEBSOCK_STREAM) << "bytes received";
 
-        // TODO FIXME STE this part need to be cheked (payload length is 32 bits)
-        payload_length = ((static_cast<unsigned char>(additionalLength.get()[0]) << 56) |
-                          (static_cast<unsigned char>(additionalLength.get()[1]) << 48) |
-                          (static_cast<unsigned char>(additionalLength.get()[2]) << 40) |
-                          (static_cast<unsigned char>(additionalLength.get()[3]) << 32) |
-                          (static_cast<unsigned char>(additionalLength.get()[4]) << 24) |
-                          (static_cast<unsigned char>(additionalLength.get()[5]) << 16) |
-                          (static_cast<unsigned char>(additionalLength.get()[6]) << 8) |
-                          (static_cast<unsigned char>(additionalLength.get()[7])));
-        pos += 8;
+        // for (int i =0; i<length_to_add ; i++){
+        //     std::bitset<8> x(additionalLength.get()[i]);
+        //     std::cout << "bytes" << x << std::endl;
+        // }
+        // yCInfo(WEBSOCK_STREAM) << "copying";
+        for (int i =0; i < length_to_add; i++) {
+            memcpy((unsigned char *)(&payload_length) + i,(unsigned char *) &additionalLength.get()[(length_to_add-1) - i], 1);
+        }
+        pos += length_to_add;
+        yCInfo(WEBSOCK_STREAM) << "payload length" << payload_length;
+        // memcpy(bits, &payload_length, 8);
+        // for (int i =0; i<8 ; i++){
+        //     std::bitset<8> x(bits[i]);
+        //     std::cout << "payload length" << x << std::endl;
+        // }
     }
 
     if (msg_masked) {
         // get the mask
         mask_bytes.allocate(4);
         delegate->getInputStream().read(mask_bytes.bytes());
-        //printf("MASK: %08x\n", mask);
         pos += 4;
     }
     payload.allocate(payload_length);
@@ -219,17 +228,25 @@ WebSocketFrameType WebSocketStream::getFrame(yarp::os::ManagedBytes& payload)
             payload.get()[i] = payload.get()[i] ^ mask_bytes.get()[i % 4];
         }
     }
-    return BINARY_FRAME;
+    // if(msg_opcode == 0x0) return (msg_fin)?TEXT_FRAME:INCOMPLETE_TEXT_FRAME; 
+    // if(msg_opcode == 0x1) return (msg_fin)?TEXT_FRAME:INCOMPLETE_TEXT_FRAME;
+    // if(msg_opcode == 0x2) return (msg_fin)?BINARY_FRAME:INCOMPLETE_BINARY_FRAME;
+    if(msg_opcode == 0x9) return PING_FRAME;
+    if(msg_opcode == 0xA) return PONG_FRAME;
+    if(msg_opcode == 0x0 || msg_opcode == 0x1) return TEXT_FRAME;
+    if(msg_opcode == 0x2) return BINARY_FRAME;
+    return ERROR_FRAME;
 }
 
 
-// FIXME TODO STE need to add length higher than 2^32
+// FIXME TODO STE need to add length higher than 2^32 ?? 
+// maybe it's not useful because payload.length is a size_t (32 bits)
 void WebSocketStream::makeFrame(WebSocketFrameType frame_type,
                                 const yarp::os::Bytes& payload,
                                 yarp::os::ManagedBytes& frame)
 {
     int pos = 0;
-    int size = payload.length();
+    size_t size = payload.length();
 
 
     if (size <= 125) {

@@ -132,10 +132,8 @@ bool WebSocketCarrier::expectSenderSpecifier(yarp::os::ConnectionState& proto)
             done = true;
         }
     }
-    // TODO STE cehck if the message is complete
-    // yCInfo(WEBSOCKETCARRIER)  << result.size() << "all http message " << result.c_str() ;
+    // TODO FIXME STE need to check if it is necessary an error if the handshake is not parsed correctly
     auto messagetype = messageHandler.parseHandshake(reinterpret_cast<unsigned char*>(const_cast<char*>(result.c_str())), result.size());
-    // yCInfo(WEBSOCKETCARRIER)  << "message type " << sstream.str() ;
     return true;
 }
 
@@ -186,5 +184,6 @@ bool WebSocketCarrier::write(ConnectionState& proto, yarp::os::SizedWriter& writ
 
 bool WebSocketCarrier::canOffer() const
 {
+    yCTrace(WEBSOCKETCARRIER);
     return true;
 }
