@@ -4,6 +4,10 @@
 # This software may be modified and distributed under the terms of the
 # BSD-3-Clause license. See the accompanying LICENSE file for details.
 
+if(NOT TARGET YARP::YARP_math)
+    return()
+endif()
+
 yarp_prepare_plugin(frameTransformStorage
                     CATEGORY device
                     TYPE FrameTransformStorage
