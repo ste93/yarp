@@ -9,10 +9,10 @@
 #ifndef YARP_WEBSOCKSTREAM_H
 #define YARP_WEBSOCKSTREAM_H
 
+#include "WebSocket/WebSocket.h"
+
 #include <yarp/os/ManagedBytes.h>
 #include <yarp/os/TwoWayStream.h>
-
-#include "WebSocket/WebSocket.h"
 
 
 class WebSocketStream :
@@ -20,7 +20,6 @@ class WebSocketStream :
         public yarp::os::InputStream,
         public yarp::os::OutputStream
 {
-
 public:
     WebSocketStream(TwoWayStream* delegate);
 

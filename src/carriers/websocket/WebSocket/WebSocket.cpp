@@ -14,8 +14,6 @@
 
 #include "WebSocket.h"
 
-
-//#include "md5/md5.h"
 #include <yarp/os/NetInt32.h>
 
 #include "base64/base64.h"
@@ -66,7 +64,6 @@ WebSocketFrameType WebSocket::parseHandshake(unsigned char* input_frame, int inp
             }
         }
     }
-    printf("HANDSHAKE-PARSED\n");
     return OPENING_FRAME;
 }
 
@@ -91,9 +88,6 @@ vector<string> WebSocket::explode(
     string theDelimiter,
     bool theIncludeEmptyStrings)
 {
-    //printf("EXPLODE\n");
-    //UASSERT( theDelimiter.size(), >, 0 );
-
     vector<string> theStringVector;
     int start = 0, end = 0, length = 0;
 
@@ -132,7 +126,8 @@ string WebSocket::answerHandshake()
         sha.Input(accept_key.data(), accept_key.size());
         sha.Result((unsigned*)digest);
 
-        //little endian to big endian
+        // TODO FIXME STE need to check if this is always needed (maybe a check on the endianess can be good)
+        // little endian to big endian
         for (int i = 0; i < 20; i += 4) {
             unsigned char c;
 

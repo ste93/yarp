@@ -49,11 +49,6 @@ public:
     bool expectAck(ConnectionState& proto) override;
     bool respondToHeader(ConnectionState& proto) override;
     bool write(ConnectionState& proto, yarp::os::SizedWriter& writer) override;
-    bool requireAck()
-    {
-        return false;
-    };
-
     bool canOffer() const override;
 
 private:

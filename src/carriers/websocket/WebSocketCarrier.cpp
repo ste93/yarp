@@ -15,6 +15,7 @@
 
 using namespace yarp::os;
 
+
 YARP_LOG_COMPONENT(WEBSOCKETCARRIER,
                    "yarp.carrier.websocket",
                    yarp::os::Log::TraceType,
@@ -55,6 +56,7 @@ bool WebSocketCarrier::checkHeader(const yarp::os::Bytes& header)
     return true;
 }
 
+
 void WebSocketCarrier::getHeader(Bytes& header) const
 {
     yCTrace(WEBSOCKETCARRIER);
@@ -66,11 +68,13 @@ void WebSocketCarrier::getHeader(Bytes& header) const
     }
 }
 
+
 bool WebSocketCarrier::requireAck() const
 {
     yCTrace(WEBSOCKETCARRIER);
     return false;
 }
+
 
 bool WebSocketCarrier::isTextMode() const
 {
@@ -85,11 +89,13 @@ bool WebSocketCarrier::supportReply() const
     return false;
 }
 
+
 bool WebSocketCarrier::sendHeader(ConnectionState& proto)
 {
     yCTrace(WEBSOCKETCARRIER);
     return true;
 }
+
 
 bool WebSocketCarrier::expectReplyToHeader(yarp::os::ConnectionState& proto)
 {
@@ -97,14 +103,13 @@ bool WebSocketCarrier::expectReplyToHeader(yarp::os::ConnectionState& proto)
     return true;
 }
 
+
 bool WebSocketCarrier::expectSenderSpecifier(yarp::os::ConnectionState& proto)
 {
     yCTrace(WEBSOCKETCARRIER);
-
     bool urlDone = false;
     std::string url;
     std::string result = "";
-
     Route route = proto.getRoute();
     route.setFromName("web");
     proto.setRoute(route);
@@ -112,7 +117,6 @@ bool WebSocketCarrier::expectSenderSpecifier(yarp::os::ConnectionState& proto)
     result += remainder;
     result += "\r\n";
 
-    yCInfo(WEBSOCKETCARRIER) << remainder;
     if (!urlDone) {
         for (char i : remainder) {
             if (i != ' ') {
@@ -173,6 +177,7 @@ bool WebSocketCarrier::respondToHeader(yarp::os::ConnectionState& proto)
     proto.takeStreams(stream);
     return proto.os().isOk();
 }
+
 
 bool WebSocketCarrier::write(ConnectionState& proto, yarp::os::SizedWriter& writer)
 {

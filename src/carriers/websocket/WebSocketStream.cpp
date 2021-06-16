@@ -79,7 +79,7 @@ void WebSocketStream::interrupt()
 
 void WebSocketStream::close()
 {
-    yCInfo(WEBSOCK_STREAM) << "close";
+    yCTrace(WEBSOCK_STREAM);
     yarp::os::ManagedBytes frame;
     yarp::os::Bytes b;
     makeFrame(CLOSING_OPCODE, b, frame);
@@ -91,7 +91,6 @@ void WebSocketStream::close()
 yarp::conf::ssize_t WebSocketStream::read(Bytes& b)
 {
     yCTrace(WEBSOCK_STREAM);
-    yCInfo(WEBSOCK_STREAM) << b.length();
     size_t bytesRead = 0;
     while (bytesRead < b.length()) {
         // the buffer is empty
@@ -262,9 +261,6 @@ void WebSocketStream::makeFrame(WebSocketFrameType frame_type,
 
     if (size <= 125) {
         frame.get()[pos++] = size;
-        std::bitset<8> x(frame.get()[pos - 1]);
-        //std::bitset<8> y(additionalLength.get()[1]);
-        std::cout << "frame size" << x << std::endl;
     } else if (size <= 65535) {
         frame.get()[pos++] = 126;                //16 bit length follows
         frame.get()[pos++] = (size >> 8) & 0xFF; // leftmost first
