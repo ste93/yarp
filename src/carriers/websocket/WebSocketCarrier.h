@@ -33,8 +33,6 @@ public:
 
     std::string getName() const override;
 
-    //virtual std::string getSpecifierName() const;
-
     bool checkHeader(const Bytes& header) override;
     void getHeader(Bytes& header) const override;
     bool requireAck() const override;

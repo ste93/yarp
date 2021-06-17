@@ -126,7 +126,6 @@ string WebSocket::answerHandshake()
         sha.Input(accept_key.data(), accept_key.size());
         sha.Result((unsigned*)digest);
 
-        // TODO FIXME STE need to check if this is always needed (maybe a check on the endianess can be good)
         // little endian to big endian
         for (int i = 0; i < 20; i += 4) {
             unsigned char c;

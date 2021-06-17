@@ -34,11 +34,13 @@ Carrier* WebSocketCarrier::create() const
     return new WebSocketCarrier();
 }
 
+
 std::string WebSocketCarrier::getName() const
 {
     yCTrace(WEBSOCKETCARRIER);
     return "websocket";
 }
+
 
 bool WebSocketCarrier::checkHeader(const yarp::os::Bytes& header)
 {
@@ -136,10 +138,14 @@ bool WebSocketCarrier::expectSenderSpecifier(yarp::os::ConnectionState& proto)
             done = true;
         }
     }
-    // TODO FIXME STE need to check if it is necessary an error if the handshake is not parsed correctly
     auto messagetype = messageHandler.parseHandshake(reinterpret_cast<unsigned char*>(const_cast<char*>(result.c_str())), result.size());
+    if (messagetype != WebSocketFrameType::OPENING_FRAME) {
+        yCError(WEBSOCKETCARRIER) << "error parsing handshake";
+        return false;
+    }
     return true;
 }
+
 
 bool WebSocketCarrier::sendIndex(yarp::os::ConnectionState& proto, yarp::os::SizedWriter& writer)
 {
@@ -147,11 +153,13 @@ bool WebSocketCarrier::sendIndex(yarp::os::ConnectionState& proto, yarp::os::Siz
     return true;
 }
 
+
 bool WebSocketCarrier::expectIndex(yarp::os::ConnectionState& proto)
 {
     yCTrace(WEBSOCKETCARRIER);
     return true;
 }
+
 
 bool WebSocketCarrier::sendAck(yarp::os::ConnectionState& proto)
 {
@@ -159,11 +167,13 @@ bool WebSocketCarrier::sendAck(yarp::os::ConnectionState& proto)
     return true;
 }
 
+
 bool WebSocketCarrier::expectAck(yarp::os::ConnectionState& proto)
 {
     yCTrace(WEBSOCKETCARRIER);
     return true;
 }
+
 
 bool WebSocketCarrier::respondToHeader(yarp::os::ConnectionState& proto)
 {
