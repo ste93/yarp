@@ -60,26 +60,30 @@ Rangefinder2D_nws_ros::~Rangefinder2D_nws_ros()
 bool Rangefinder2D_nws_ros::checkROSParams(yarp::os::Searchable &config)
 {
     // check for ROS_nodeName parameter
-    if (!config.check("nodeName"))
+    if (!config.check("node_name"))
     {
-        yCError(RANGEFINDER2D_NWS_ROS) << "Cannot find ROS_nodeName parameter, mandatory when using ROS message";
+        yCError(RANGEFINDER2D_NWS_ROS) << "Cannot find node_name parameter";
         return false;
     }
-    rosNodeName = config.find("nodeName").asString();
+    rosNodeName = config.find("node_name").asString();
     if(rosNodeName[0] != '/'){
-        yCError(RANGEFINDER2D_NWS_ROS) << "node name must begin with an initial /";
+        yCError(RANGEFINDER2D_NWS_ROS) << "node_name parameter must begin with an initial /";
         return false;
     }
-    yCInfo(RANGEFINDER2D_NWS_ROS) << "NodeName is " << rosNodeName;
+    yCInfo(RANGEFINDER2D_NWS_ROS) << "node_name is " << rosNodeName;
 
     // check for ROS_topicName parameter
-    if (!config.check("topicName"))
+    if (!config.check("topic_name"))
     {
-        yCError(RANGEFINDER2D_NWS_ROS) << "Cannot find ROS_topicName parameter, mandatory when using ROS message";
+        yCError(RANGEFINDER2D_NWS_ROS) << "Cannot find topic_name parameter";
         return false;
     }
-    rosTopicName = config.find("topicName").asString();
-    yCInfo(RANGEFINDER2D_NWS_ROS) << "rosTopicName is " << rosTopicName;
+    rosTopicName = config.find("topic_name").asString();
+    if(rosTopicName[0] != '/'){
+        yCError(RANGEFINDER2D_NWS_ROS) << "topic_name parameter must begin with an initial /";
+        return false;
+    }
+    yCInfo(RANGEFINDER2D_NWS_ROS) << "topic_name is " << rosTopicName;
 
     // check for frame_id parameter
     if (!config.check("frame_id"))
