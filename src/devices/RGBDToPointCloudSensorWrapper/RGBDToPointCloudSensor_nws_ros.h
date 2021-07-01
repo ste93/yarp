@@ -57,9 +57,9 @@ namespace RGBDToPointCloudImpl{
  * |:----------------------:|:-----------------------:|:-------:|:--------------:|:-------------:|:------------------------------: |:---------------------------------------------------------------------------------------------------:|:-----:|
  * | period                 |      -                  | int     |  s             |   0.033       |  No                             | refresh period of the broadcasted values in ms                                                      | default 0.033 s |
  * | subdevice              |      -                  | string  |  -             |   -           |  alternative to 'attach' action | name of the subdevice to use as a data source                                                       | when used, parameters for the subdevice must be provided as well |
- * | pointCloudTopicName    |      -                  | string  |  -             |   -           |  Yes                            | set the name for ROS point cloud topic                                                              | must start with a leading '/' |
- * | frame_Id               |      -                  | string  |  -             |               |  Yes                            | set the name of the reference frame                                                                 |                               |
- * | nodeName               |      -                  | string  |  -             |   -           |  Yes                            | set the name for ROS node                                                                           | must start with a leading '/' |
+ * | base_topic_name        |      -                  | string  |  -             |               |  Yes                            | set the base name for ROS point cloud topic (/points is added)                                      | must start with a leading '/' |
+ * | frame_id               |      -                  | string  |  -             |               |  Yes                            | set the name of the reference frame                                                                 |                               |
+ * | node_name              |      -                  | string  |  -             |   -           |  Yes                            | set the name for ROS node                                                                           | must start with a leading '/' |
  *
  * ROS message type used is sensor_msgs/Image.msg ( http://docs.ros.org/en/api/sensor_msgs/html/msg/PointCloud2.html)
  * Some example of configuration files:
@@ -70,9 +70,9 @@ namespace RGBDToPointCloudImpl{
  * device RGBDToPointCloudSensor_nws_ros
  * subdevice <RGBDsensor>
  * period 30
- * pointCloudTopicName /<robotName>/RGBDToPointCloud
- * frame_Id /<robotName>/<framed_Id>
- * nodeName /<robotName>/RGBDToPointCloudSensorNode
+ * base_topic_name /camera
+ * frame_id depth_center
+ * node_name /<robotName>/RGBDToPointCloudSensorNode
  * \endcode
  */
 
@@ -145,7 +145,6 @@ private:
 
     bool writeData();
 
-    static std::string yarp2RosPixelCode(int code);
 
 public:
     RGBDToPointCloudSensor_nws_ros();
