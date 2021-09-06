@@ -16,22 +16,41 @@ YARP_LOG_COMPONENT(POINTCLOUDUTILS, "yarp.sig.PointCloudUtils")
 PointCloud<DataXYZ> utils::depthToPC(const yarp::sig::ImageOf<PixelFloat> &depth,
                                      const yarp::sig::IntrinsicParams &intrinsic)
 {
+        return depthToPC(depth, intrinsic, OrganizationType::Organized);
+}
+
+PointCloud<DataXYZ> utils::depthToPC(const yarp::sig::ImageOf<PixelFloat> &depth,
+                                     const yarp::sig::IntrinsicParams &intrinsic,
+                                     const yarp::sig::utils::OrganizationType organizationType)
+{
     yCAssert(POINTCLOUDUTILS, depth.width()  != 0);
     yCAssert(POINTCLOUDUTILS, depth.height() != 0);
     size_t w = depth.width();
     size_t h = depth.height();
     PointCloud<DataXYZ> pointCloud;
-    pointCloud.resize(w, h);
+    if (organizationType == yarp::sig::utils::OrganizationType::Organized){
+        pointCloud.resize(w, h);
+    }
 
     for (size_t u = 0; u < w; ++u) {
         for (size_t v = 0; v < h; ++v) {
-            // De-projection equation (pinhole model):
-            //                          x = (u - ppx)/ fx * z
-            //                          y = (v - ppy)/ fy * z
-            //                          z = z
-            pointCloud(u,v).x = (u - intrinsic.principalPointX)/intrinsic.focalLengthX*depth.pixel(u,v);
-            pointCloud(u,v).y = (v - intrinsic.principalPointY)/intrinsic.focalLengthY*depth.pixel(u,v);
-            pointCloud(u,v).z = depth.pixel(u,v);
+            if (organizationType == yarp::sig::utils::OrganizationType::Organized) {
+                // De-projection equation (pinhole model):
+                //                          x = (u - ppx)/ fx * z
+                //                          y = (v - ppy)/ fy * z
+                //                          z = z
+                pointCloud(u, v).x = (u - intrinsic.principalPointX) / intrinsic.focalLengthX * depth.pixel(u, v);
+                pointCloud(u, v).y = (v - intrinsic.principalPointY) / intrinsic.focalLengthY * depth.pixel(u, v);
+                pointCloud(u, v).z = depth.pixel(u, v);
+            } else {
+                if (depth.pixel(u,v) > 0){
+                    DataXYZ point;
+                    point.x = (u - intrinsic.principalPointX)/intrinsic.focalLengthX*depth.pixel(u,v);
+                    point.y = (v - intrinsic.principalPointY)/intrinsic.focalLengthY*depth.pixel(u,v);
+                    point.z = depth.pixel(u,v);
+                    pointCloud.push_back(point);
+                }
+            }
         }
     }
     return pointCloud;

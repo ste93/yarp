@@ -45,6 +45,19 @@ YARP_sig_API yarp::sig::PointCloud<yarp::sig::DataXYZ> depthToPC(const yarp::sig
                                                                  const yarp::sig::IntrinsicParams& intrinsic);
 
 /**
+ * @brief depthToPC, compute the PointCloud given depth image and the intrinsic parameters of the camera.
+ * @param[in] depth, the input depth image.
+ * @param[in] intrinsic, intrinsic parameter of the camera.
+ * @param[in] organizationType, organization type of the point cloud (organized or unorganized).
+ * @note the intrinsic parameters are the one of the depth sensor if the depth frame IS NOT aligned with the
+ * colored one. On the other hand use the intrinsic parameters of the RGB camera if the frames are aligned.
+ * @return the pointcloud obtained by the de-projection.
+ */
+YARP_sig_API yarp::sig::PointCloud<yarp::sig::DataXYZ> depthToPC(const yarp::sig::ImageOf<yarp::sig::PixelFloat>& depth,
+                                                                 const yarp::sig::IntrinsicParams& intrinsic,
+                                                                 const yarp::sig::utils::OrganizationType organizationType);
+
+/**
  * @brief depthToPC, compute the PointCloud given depth image, the intrinsic parameters of the camera and a Region Of Interest.
  * @param[in] depth, the input depth image.
  * @param[in] intrinsic, intrinsic parameter of the camera.

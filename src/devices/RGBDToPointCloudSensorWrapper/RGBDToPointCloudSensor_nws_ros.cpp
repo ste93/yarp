@@ -45,6 +45,16 @@ bool RGBDToPointCloudSensor_nws_ros::open(yarp::os::Searchable &config)
         period = config.find("period").asFloat64();
     }
 
+    // check publish rgb
+    if (!config.check("enable_color_publication", "enables the device to publish color data")) {
+        if(verbose >= 3) {
+            yCInfo(RGBDTOPOINTCLOUDSENSORNWSROS) << "enable_color_publication is true as default";
+        }
+    }
+    else {
+        enableColorPublication = config.find("enable_color_publication").asBool();
+    }
+
     // nodename parameter
     if (!config.check("node_name", "the name of the ros node")) {
         yCError(RGBDTOPOINTCLOUDSENSORNWSROS) << "missing node_name parameter";
@@ -242,12 +252,7 @@ bool RGBDToPointCloudSensor_nws_ros::writeData()
                 yarp::sig::IntrinsicParams intrinsics(propIntrinsic);
                 yarp::sig::ImageOf<yarp::sig::PixelRgb> colorImagePixelRGB;
                 colorImagePixelRGB.setExternal(colorImage.getRawImage(), colorImage.width(), colorImage.height());
-                // create point cloud in yarp format
-                yarp::sig::PointCloud<yarp::sig::DataXYZRGBA> yarpCloud = yarp::sig::utils::depthRgbToPC<yarp::sig::DataXYZRGBA,
-                                                                                                         yarp::sig::PixelRgb>(depthImage,
-                                                                                                                              colorImagePixelRGB,
-                                                                                                                              intrinsics,
-                                                                                                                              yarp::sig::utils::OrganizationType::Unorganized);
+
                 PointCloud2Type& pc2Ros = publisherPort_pointCloud.prepare();
                 // filling ros header
                 yarp::rosmsg::std_msgs::Header headerRos;
@@ -261,7 +266,7 @@ bool RGBDToPointCloudSensor_nws_ros::writeData()
                 pointFieldRos.push_back(yarp::rosmsg::sensor_msgs::PointField());
                 pointFieldRos.push_back(yarp::rosmsg::sensor_msgs::PointField());
                 pointFieldRos.push_back(yarp::rosmsg::sensor_msgs::PointField());
-                pointFieldRos.push_back(yarp::rosmsg::sensor_msgs::PointField());
+
                 pointFieldRos[0].name = "x";
                 pointFieldRos[0].offset = 0;
                 pointFieldRos[0].datatype = 7;
@@ -274,21 +279,46 @@ bool RGBDToPointCloudSensor_nws_ros::writeData()
                 pointFieldRos[2].offset = 8;
                 pointFieldRos[2].datatype = 7;
                 pointFieldRos[2].count = 1;
-                pointFieldRos[3].name = "rgb";
-                pointFieldRos[3].offset = 16;
-                pointFieldRos[3].datatype = 7;
-                pointFieldRos[3].count = 1;
+                if (enableColorPublication) {
+                    pointFieldRos.push_back(yarp::rosmsg::sensor_msgs::PointField());
+                    pointFieldRos[3].name = "rgb";
+                    pointFieldRos[3].offset = 16;
+                    pointFieldRos[3].datatype = 7;
+                    pointFieldRos[3].count = 1;
+                }
                 pc2Ros.fields = pointFieldRos;
+                // create point cloud in yarp format
+                if (enableColorPublication) {
+                    yarp::sig::PointCloud<yarp::sig::DataXYZRGBA> yarpCloud;
+                    yarpCloud = yarp::sig::utils::depthRgbToPC<yarp::sig::DataXYZRGBA,
+                                                               yarp::sig::PixelRgb>(depthImage,
+                                                               colorImagePixelRGB,
+                                                               intrinsics,
+                                                               yarp::sig::utils::OrganizationType::Unorganized);
+                    std::vector<unsigned char> vec(yarpCloud.getRawData(), yarpCloud.getRawData() + yarpCloud.dataSizeBytes() );
+                    pc2Ros.data = vec;
+                    pc2Ros.header = headerRos;
+                    pc2Ros.width = yarpCloud.width() * yarpCloud.height();
+                    pc2Ros.height = 1;
+                    pc2Ros.is_dense = yarpCloud.isDense();
+                    pc2Ros.point_step = sizeof (yarp::sig::DataXYZRGBA);
+                    pc2Ros.row_step   = static_cast<std::uint32_t> (sizeof (yarp::sig::DataXYZRGBA) * pc2Ros.width);
+                    yCInfo(RGBDTOPOINTCLOUDSENSORNWSROS) << "size of XYZRGBA -------" << yarpCloud.dataSizeBytes() ;
 
-                std::vector<unsigned char> vec(yarpCloud.getRawData(), yarpCloud.getRawData() + yarpCloud.dataSizeBytes() );
-                pc2Ros.data = vec;
-                pc2Ros.header = headerRos;
-                pc2Ros.width = yarpCloud.width() * yarpCloud.height();
-                pc2Ros.height = 1;
-                pc2Ros.is_dense = yarpCloud.isDense();
+                } else {
+                    yarp::sig::PointCloud<yarp::sig::DataXYZ> yarpCloud;
+                    yarpCloud = yarp::sig::utils::depthToPC(depthImage, intrinsics, yarp::sig::utils::OrganizationType::Unorganized);
+                    std::vector<unsigned char> vec(yarpCloud.getRawData(), yarpCloud.getRawData() + yarpCloud.dataSizeBytes() );
+                    pc2Ros.data = vec;
+                    pc2Ros.header = headerRos;
+                    pc2Ros.width = yarpCloud.width() * yarpCloud.height();
+                    pc2Ros.height = 1;
+                    pc2Ros.is_dense = yarpCloud.isDense();
+                    pc2Ros.point_step = sizeof (yarp::sig::DataXYZ);
+                    pc2Ros.row_step   = yarpCloud.dataSizeBytes() ;
+                    yCInfo(RGBDTOPOINTCLOUDSENSORNWSROS) << "size of XYZ -------" << yarpCloud.dataSizeBytes() ;
+                }
 
-                pc2Ros.point_step = sizeof (yarp::sig::DataXYZRGBA);
-                pc2Ros.row_step   = static_cast<std::uint32_t> (sizeof (yarp::sig::DataXYZRGBA) * pc2Ros.width);
 
                 publisherPort_pointCloud.write();
             }

@@ -57,6 +57,7 @@ namespace RGBDToPointCloudImpl{
  * | topic_name             |      -                  | string  |  -             |               |  Yes                            | set the name for ROS point cloud topic                                                              | must start with a leading '/' |
  * | frame_id               |      -                  | string  |  -             |               |  Yes                            | set the name of the reference frame                                                                 |                               |
  * | node_name              |      -                  | string  |  -             |   -           |  Yes                            | set the name for ROS node                                                                           | must start with a leading '/' |
+ * | enable_color_publication |      -                | int     |  -             |   -           |  No                             | if 1 publish also color in the point cloud                                                          | default is 1 |
  *
  * ROS message type used is sensor_msgs/Image.msg ( http://docs.ros.org/en/api/sensor_msgs/html/msg/PointCloud2.html)
  * Some example of configuration files:
@@ -104,6 +105,7 @@ private:
     std::string           nodeName;
     std::string           pointCloudTopicName;
     std::string           frameId;
+    bool                  enableColorPublication = true;
 
     // images from device
     yarp::sig::FlexImage  colorImage;
