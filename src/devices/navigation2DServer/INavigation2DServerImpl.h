@@ -45,8 +45,8 @@ class INavigation2DRPCd : public INavigation2DMsgs
     bool                               recompute_current_navigation_path_RPC() override;
     return_get_navigation_status       get_navigation_status_RPC() override;
     return_get_current_nav_waypoint    get_current_nav_waypoint_RPC() override;
-    return_get_all_nav_waypoints       get_all_navigation_waypoints_RPC(yarp::dev::Nav2D::TrajectoryTypeEnum trajectory_type) override;
-    return_get_current_nav_map         get_current_navigation_map_RPC(yarp::dev::Nav2D::NavigationMapTypeEnum map_type) override;
+    return_get_all_nav_waypoints       get_all_navigation_waypoints_RPC(int useless, yarp::dev::Nav2D::TrajectoryTypeEnum trajectory_type) override;
+    return_get_current_nav_map         get_current_navigation_map_RPC(int useless, yarp::dev::Nav2D::NavigationMapTypeEnum map_type) override;
 
     //INavigation2DTargetActions
     bool                               goto_target_by_absolute_location_RPC(const yarp::dev::Nav2D::Map2DLocation& loc) override;
