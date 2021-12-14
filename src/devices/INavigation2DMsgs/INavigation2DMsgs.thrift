@@ -104,8 +104,8 @@ service INavigation2DMsgs
   bool                               recompute_current_navigation_path_RPC ();
   return_get_navigation_status       get_navigation_status_RPC         ();
   return_get_current_nav_waypoint    get_current_nav_waypoint_RPC      ();
-  return_get_all_nav_waypoints       get_all_navigation_waypoints_RPC  (1:yarp_dev_Nav2D_TrajectoryTypeEnum trajectory_type);
-  return_get_current_nav_map         get_current_navigation_map_RPC    (1:yarp_dev_Nav2D_NavigationMapTypeEnum map_type);
+  return_get_all_nav_waypoints       get_all_navigation_waypoints_RPC  (1:i32 useless, 2:yarp_dev_Nav2D_TrajectoryTypeEnum trajectory_type);
+  return_get_current_nav_map         get_current_navigation_map_RPC    (1:i32 useless, 2:yarp_dev_Nav2D_NavigationMapTypeEnum map_type);
 
   bool                               goto_target_by_absolute_location_RPC         (1:yarp_dev_Nav2D_Map2DLocation loc);
   bool                               goto_target_by_relative_location1_RPC        (1:double x, 2:double y);

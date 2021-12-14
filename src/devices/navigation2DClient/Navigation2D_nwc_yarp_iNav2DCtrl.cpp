@@ -64,7 +64,7 @@ bool Navigation2D_nwc_yarp::resumeNavigation()
 bool   Navigation2D_nwc_yarp::getAllNavigationWaypoints(yarp::dev::Nav2D::TrajectoryTypeEnum trajectory_type, yarp::dev::Nav2D::Map2DPath& waypoints)
 {
     std::lock_guard <std::mutex> lg(m_mutex);
-    auto ret = m_nav_RPC.get_all_navigation_waypoints_RPC(trajectory_type);
+    auto ret = m_nav_RPC.get_all_navigation_waypoints_RPC(0,trajectory_type);
     if (!ret.ret)
     {
         yCError(NAVIGATION2D_NWC_YARP, "Unable to get_current_nav_waypoint_RPC");
@@ -90,7 +90,7 @@ bool   Navigation2D_nwc_yarp::getCurrentNavigationWaypoint(Map2DLocation& curr_w
 bool Navigation2D_nwc_yarp::getCurrentNavigationMap(yarp::dev::Nav2D::NavigationMapTypeEnum map_type,MapGrid2D& map)
 {
     std::lock_guard <std::mutex> lg(m_mutex);
-    auto ret = m_nav_RPC.get_current_navigation_map_RPC(map_type);
+    auto ret = m_nav_RPC.get_current_navigation_map_RPC(0,map_type);
     if (!ret.ret)
     {
         yCError(NAVIGATION2D_NWC_YARP, "Unable to get_current_nav_waypoint_RPC");

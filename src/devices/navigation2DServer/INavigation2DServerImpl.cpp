@@ -125,7 +125,7 @@ return_get_current_nav_waypoint    INavigation2DRPCd::get_current_nav_waypoint_R
     return ret;
 }
 
-return_get_all_nav_waypoints       INavigation2DRPCd::get_all_navigation_waypoints_RPC(yarp::dev::Nav2D::TrajectoryTypeEnum trajectory_type)
+return_get_all_nav_waypoints       INavigation2DRPCd::get_all_navigation_waypoints_RPC(int useless, yarp::dev::Nav2D::TrajectoryTypeEnum trajectory_type)
 {
     std::lock_guard <std::mutex> lg(m_mutex);
 
@@ -147,7 +147,7 @@ return_get_all_nav_waypoints       INavigation2DRPCd::get_all_navigation_waypoin
     return ret;
 }
 
-return_get_current_nav_map         INavigation2DRPCd::get_current_navigation_map_RPC(yarp::dev::Nav2D::NavigationMapTypeEnum map_type)
+return_get_current_nav_map         INavigation2DRPCd::get_current_navigation_map_RPC(int useless, yarp::dev::Nav2D::NavigationMapTypeEnum map_type)
 {
     std::lock_guard <std::mutex> lg(m_mutex);
 
