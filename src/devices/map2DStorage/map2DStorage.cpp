@@ -109,7 +109,9 @@ bool Map2DStorage::loadMapsCollection(std::string mapsfile)
                 auto p = m_maps_storage.find(map_name);
                 if (p == m_maps_storage.end())
                 {
+                    yCError(MAP2DSTORAGE) << "before crop";
                     if (option == "crop") {
+                        yCError(MAP2DSTORAGE) << "crop";
                         map.crop(-1, -1, -1, -1);
                     }
                     m_maps_storage[map_name] = map;
