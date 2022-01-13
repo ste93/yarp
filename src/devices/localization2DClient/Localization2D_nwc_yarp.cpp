@@ -111,7 +111,7 @@ bool  Localization2D_nwc_yarp::getEstimatedOdometry(yarp::dev::OdometryData& odo
     auto ret = m_RPC.get_estimated_odometry_RPC();
     if (!ret.ret)
     {
-        yCError(LOCALIZATION2D_NWC_YARP, "Unable to set transformation");
+        yCError(LOCALIZATION2D_NWC_YARP, "Unable to getEstimatedOdometry");
         return false;
     }
     odom = ret.odom;
@@ -124,7 +124,7 @@ bool  Localization2D_nwc_yarp::getCurrentPosition(Map2DLocation& loc)
     auto ret = m_RPC.get_current_position1_RPC();
     if (!ret.ret)
     {
-        yCError(LOCALIZATION2D_NWC_YARP, "Unable to set transformation");
+        yCError(LOCALIZATION2D_NWC_YARP, "Unable to getCurrentPosition");
         return false;
     }
     loc = ret.loc;
@@ -137,7 +137,7 @@ bool  Localization2D_nwc_yarp::getCurrentPosition(Map2DLocation& loc, yarp::sig:
     auto ret = m_RPC.get_current_position2_RPC();
     if (!ret.ret)
     {
-        yCError(LOCALIZATION2D_NWC_YARP, "Unable to set transformation");
+        yCError(LOCALIZATION2D_NWC_YARP, "Unable to getCurrentPosition location and matrix");
         return false;
     }
     loc = ret.loc;
@@ -151,7 +151,7 @@ bool  Localization2D_nwc_yarp::getEstimatedPoses(std::vector<Map2DLocation>& pos
     auto ret = m_RPC.get_estimated_poses_RPC();
     if (!ret.ret)
     {
-        yCError(LOCALIZATION2D_NWC_YARP, "Unable to set transformation");
+        yCError(LOCALIZATION2D_NWC_YARP, "Unable to getEstimatedPoses");
         return false;
     }
     poses = ret.poses;
@@ -164,7 +164,7 @@ bool  Localization2D_nwc_yarp::getLocalizationStatus(yarp::dev::Nav2D::Localizat
     auto ret = m_RPC.get_localization_status_RPC();
     if (!ret.ret)
     {
-        yCError(LOCALIZATION2D_NWC_YARP, "Unable to set transformation");
+        yCError(LOCALIZATION2D_NWC_YARP, "Unable to getLocalizationStatus");
         return false;
     }
     status = yarp::dev::Nav2D::LocalizationStatusEnum(ret.status);
